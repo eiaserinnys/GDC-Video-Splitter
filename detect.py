@@ -195,7 +195,7 @@ def checkLastClipRect(maxRect, lastClipRect):
       if dist < 20:
         maxRect = copy.deepcopy(lastClipRect)
       else:
-        print('new rect({},{},{},{}) detected'.format(x1,y1,x2,y2))
+        #print('new rect({},{},{},{}) detected'.format(x1,y1,x2,y2))
         
         #maxRect = copy.deepcopy(lastClipRect)
 
@@ -203,7 +203,8 @@ def checkLastClipRect(maxRect, lastClipRect):
         maxRect = None
 
     else:
-      print('initial rect({},{},{},{}) detected'.format(x1,y1,x2,y2))
+      #print('initial rect({},{},{},{}) detected'.format(x1,y1,x2,y2))
+      pass
 
   return maxRect
 

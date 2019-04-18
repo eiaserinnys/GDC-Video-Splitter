@@ -74,7 +74,7 @@ class GifWriter:
           time.sleep(0.1)
 
         threads.inc()
-        print('writing {}...', self.pathName)
+        #print('writing {}...', self.pathName)
         self.Q = Queue()
         t = Thread(target=self.update, args=())
         t.daemon = True

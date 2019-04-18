@@ -12,6 +12,7 @@ import frameclipper
 import scenewriter
 import sys
 import argparse
+from tqdm import tqdm
 
 # 파일 기록 여부
 scenewriter.writeFiles = True
@@ -193,6 +194,9 @@ def main():
       print('opening \'{}\' failed, skipping.'.format(path))
       continue
 
+    totalFrames = clipper.getTotalFrames()
+    pbar = tqdm(total=totalFrames)
+
     # 비디오를 읽는다
     breaked = False
     while clipper.more():
@@ -206,6 +210,8 @@ def main():
       epsilon = cv2.getTrackbarPos('Epsilon', 'UI') /100
 
       clipper.do(thres1, thres2, thres3, thres4, epsilon)
+
+      pbar.update(1)
 
       time_2 = time.time()
 
@@ -240,6 +246,8 @@ def main():
 
     if breaked:
       break
+
+    pbar.close()
 
   # Closes all the frames
   cv2.destroyAllWindows()

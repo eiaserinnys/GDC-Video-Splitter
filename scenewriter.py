@@ -5,6 +5,7 @@ import imageio
 import gifwriter
 
 writeFiles = True
+showDebug = False
 
 ################################################################################
 class FrameError:
@@ -160,7 +161,8 @@ class SceneWriter:
       self.frameError = frameError
 
     if frameError.isError and not self.inTransition:
-        print('{} - large error detected = {}, {}'.format(frameNum, frameError.maxFeatureError, frameError.maxMeanError))
+        if showDebug:
+          print('{} - large error detected = {}, {}'.format(frameNum, frameError.maxFeatureError, frameError.maxMeanError))
 
     return not frameError.isError
 
@@ -244,13 +246,15 @@ class SceneWriter:
       # gif 기록을 마친다
       self.endGifWriter()
 
-      print('{} - transition stablized'.format(frameNum))
+      if showDebug:
+        print('{} - transition stablized'.format(frameNum))
 
       # 트랜지션 완료 프레임을 덤프
       self.writtenFrame += 1
       fileName = '{no:04d}f-{f:06d}.jpg'.format(no=self.writtenFrame,f=int(frameNum))
       (ch, cw) = clipped.shape[:2]
-      print('Writing {} ({}x{})...'.format(fileName, cw, ch))
+      if showDebug:
+        print('Writing {} ({}x{})...'.format(fileName, cw, ch))
 
       if writeFiles:
         cv2.imwrite(self.outputPath + '\\' + fileName, clipped)
@@ -263,7 +267,8 @@ class SceneWriter:
 
     if clipped is not None:
       if self.writingUncut:
-        print('frame recovered')
+        if showDebug:
+          print('frame recovered')
         self.endMp4Writer()
         self.writingUncut = False
         self.previousUncutFrames = []
@@ -272,7 +277,8 @@ class SceneWriter:
         self.appendMp4Frame(frame)
       else:
         if len(self.previousUncutFrames) == 0:
-          print('frame lost')
+          if showDebug:
+            print('frame lost')
 
         self.previousUncutFrames.append(frame)
 

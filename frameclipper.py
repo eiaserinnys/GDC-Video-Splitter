@@ -92,6 +92,11 @@ class FrameClipper:
   def isPlaying(self):
     return self.play
 
+  def getTotalFrames(self):
+    if self.fvs is not None:
+      return self.fvs.totalFrames
+    return 0
+
   #------------------------------------------------------------------------------
   def setPlaying(self, value):
     self.play = value

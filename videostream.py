@@ -15,6 +15,7 @@ else:
 class FileVideoStream:
   def __init__(self, path, framePos=0, queueSize=256):
     self.fps = 1
+    self.totalFrames = 1
 
     # initialize the file video stream along with the boolean
     # used to indicate if the thread should be stopped or not
@@ -23,6 +24,8 @@ class FileVideoStream:
     if self.stream.isOpened():
       if framePos > 0:
         self.stream.set(cv2.CAP_PROP_POS_FRAMES, framePos)
+        
+      self.totalFrames = self.stream.get(cv2.CAP_PROP_FRAME_COUNT)
 
       self.fps = self.stream.get(cv2.CAP_PROP_FPS)
       print('"Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}'.format(self.fps))
@@ -36,6 +39,9 @@ class FileVideoStream:
 
   def getFPS(self):
     return self.fps
+
+  def getTotalFrames(self):
+    return self.totalFrames
 
   def start(self):
     # start a thread to read frames from the file video stream
