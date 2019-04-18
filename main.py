@@ -17,10 +17,10 @@ import argparse
 showMainScene = False
 
 # 파일 기록 여부
-scenewriter.writeFiles = False
+scenewriter.writeFiles = True
 
 debugRectDetection = False
-debugFrameError = True
+debugFrameError = False
 stopOnError = True               # 에러 발생 시 재생 정지
 startFramePos = 0                # 0
 
