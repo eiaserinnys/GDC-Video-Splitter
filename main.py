@@ -10,14 +10,17 @@ import gifwriter
 import detect
 import frameclipper
 import scenewriter
+import sys
+import argparse
+
 
 showMainScene = False
 
 # 파일 기록 여부
-scenewriter.writeFiles = True
+scenewriter.writeFiles = False
 
 debugRectDetection = False
-debugFrameError = False
+debugFrameError = True
 stopOnError = True               # 에러 발생 시 재생 정지
 startFramePos = 0                # 0
 
@@ -149,6 +152,18 @@ def showFrameError(clipper, thres3, thres4):
 ################################################################################
 def main():
 
+  parser = argparse.ArgumentParser()
+
+  parser.add_argument('infolder', help='the folder which contains video files to process')
+  parser.add_argument('-o', '--outfolder', help='folder to store the split scenes')
+
+  args = parser.parse_args()
+
+  infolder = args.infolder
+  outfolder = args.outfolder
+  if outfolder is None:
+    outfolder = infolder
+
   createUI()
 
   # Create a VideoCapture object and read from input file
@@ -158,20 +173,24 @@ def main():
   
   list = []
 
-  folder = 'S:\\DSquare\\[참고자료]\\오픈월드'
-  for file in os.listdir(folder):
-      if file.endswith(".mp4"):
-          pathName = os.path.join(folder, file)
-          print(pathName)
-          list.append(pathName)
+  try:
+    for file in os.listdir(infolder):
+        if file.endswith(".mp4"):
+            pathName = os.path.join(infolder, file)
+            print(pathName)
+            list.append(pathName)
+  except:
+    print('listing video files from {} failed'.format(infolder))
+    return
 
   for path in list:
     
     # 클리퍼를 생성한다
-    clipper = frameclipper.FrameClipper(path, startFramePos)
+    clipper = frameclipper.FrameClipper(path, outfolder, startFramePos)
 
     # 비디오가 열렸나 확인
     if not clipper.isOpened():
+      print('opening \'{}\' failed, skipping.'.format(path))
       continue
 
     # 비디오를 읽는다

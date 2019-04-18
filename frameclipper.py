@@ -11,17 +11,17 @@ import rectclipper
 class FrameClipper:
 
   #------------------------------------------------------------------------------
-  def __init__(self, pathname, framePos=0):
+  def __init__(self, pathname, outfolder, framePos=0):
 
     completed = False
 
     # 출력 폴더를 자른다
-    self.outputPath = os.path.splitext(os.path.basename(pathname))[0]
+    self.outputPath = os.path.join(outfolder, os.path.splitext(os.path.basename(pathname))[0])
     self.debug = False
 
     # 완료 마커가 있는지 체크
     try:
-      open(self.outputPath + "\\completed", "r")
+      open(os.path.join(self.outputPath, "completed"), "r")
       completed = True
     except:
       pass
@@ -69,7 +69,7 @@ class FrameClipper:
         if scenewriter.writeFiles:
           # 완료 마커를 기록한다
           try:
-            f = open(self.outputPath + "\\completed", "w+")
+            f = open(os.path.join(self.outputPath, "completed"), "w+")
             f.write('completed')
             close(f)
           except:

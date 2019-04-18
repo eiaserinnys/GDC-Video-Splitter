@@ -5,11 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Entry (Integrated Terminal)",
+            "name": "Python: Main (Integrated Terminal)",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "args": [
+                "S:\\DSquare\\[참고자료]\\오픈월드"
+            ],
         },
         {
             "name": "Python: Current File (Integrated Terminal)",
@@ -35,7 +38,7 @@
             "name": "Python: Module",
             "type": "python",
             "request": "launch",
-            "module": "enter-your-module-name-here",
+            "module": "${workspaceFolder}/main.py",
             "console": "integratedTerminal"
         },
         {
