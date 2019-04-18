@@ -71,7 +71,11 @@ class RectDetector:
 
     # 영역 감지
     maxRect = None
-    (maxRect, contours, approxContours) = detect.detectMaximumRectangle(dilatedCanny, w, h, epsilon)
+    if self.lastClipRect is None:
+      (maxRect, contours, approxContours) = detect.detectMaximumRectangle(dilatedCanny, w, h, epsilon)
+    else:
+      # 기존 영역하고 다르면 검출을 포기한다 (성능 이슈)
+      (maxRect, contours, approxContours) = (None, [], [])
 
     return Detected(canny, dilatedCanny, maxRect, contours, approxContours)
 

@@ -95,6 +95,7 @@ class FrameClipper:
   #------------------------------------------------------------------------------
   def setPlaying(self, value):
     self.play = value
+    print('play flag changed - {}'.format(value))
 
   #------------------------------------------------------------------------------
   def getCurrentFrame(self):

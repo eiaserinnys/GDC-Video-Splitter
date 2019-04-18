@@ -13,9 +13,6 @@ import scenewriter
 import sys
 import argparse
 
-
-showMainScene = False
-
 # 파일 기록 여부
 scenewriter.writeFiles = True
 
@@ -164,6 +161,9 @@ def main():
   if outfolder is None:
     outfolder = infolder
 
+  # 처리 중인 씬 표시
+  showMainScene = False
+
   createUI()
 
   # Create a VideoCapture object and read from input file
@@ -232,6 +232,9 @@ def main():
       
       if key & 0xff == ord('t'):
         print('time=', (int)((time_2 - time_1) * 1000))
+
+      if key & 0xff == ord('s'):
+        showMainScene = not showMainScene
 
     clipper.close()
 
