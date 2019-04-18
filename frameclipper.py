@@ -92,6 +92,7 @@ class FrameClipper:
   def isPlaying(self):
     return self.play
 
+  #------------------------------------------------------------------------------
   def getTotalFrames(self):
     if self.fvs is not None:
       return self.fvs.totalFrames
@@ -144,7 +145,11 @@ class FrameClipper:
     self.waitForBufferEmptied = False
 
     return self.fvs.read()
-   
+
+  #------------------------------------------------------------------------------
+  def getCurrentFrameNum(self):
+    return self.lastFrameNum
+
   #------------------------------------------------------------------------------
   def do(self, thres1, thres2, thres3, thres4, epsilon):
 

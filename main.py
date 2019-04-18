@@ -147,12 +147,22 @@ def showFrameError(clipper, thres3, thres4):
   cv2.imshow('Frame',debugFrame)
 
 ################################################################################
+def str2bool(v):
+  if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    return True
+  elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    return False
+  else:
+    raise argparse.ArgumentTypeError('Boolean value expected.')
+
+################################################################################
 def main():
 
   parser = argparse.ArgumentParser()
 
   parser.add_argument('infolder', help='the folder which contains video files to process')
   parser.add_argument('-o', '--outfolder', help='folder to store the split scenes')
+  parser.add_argument('-s', '--showgui', type=str2bool, nargs='?', const=False, default=False, help='show ui for image processing threshold variables')
 
   args = parser.parse_args()
 
@@ -164,7 +174,8 @@ def main():
   # 처리 중인 씬 표시
   showMainScene = False
 
-  createUI()
+  if args.showgui:
+    createUI()
 
   # Create a VideoCapture object and read from input file
   # If the input is the camera, pass 0 instead of the video file name
@@ -186,14 +197,19 @@ def main():
   for path in list:
     
     # 클리퍼를 생성한다
-    clipper = frameclipper.FrameClipper(path, outfolder, startFramePos)
+    try:
+      clipper = frameclipper.FrameClipper(path, outfolder, startFramePos)
+    except:
+      print('something went wrong, processing next video...')
+      continue
 
     # 비디오가 열렸나 확인
     if not clipper.isOpened():
       print('opening \'{}\' failed, skipping.'.format(path))
       continue
 
-    totalFrames = clipper.getTotalFrames()
+    lastFrame = 0
+    totalFrames = int(clipper.getTotalFrames())
     pbar = tqdm(total=totalFrames)
 
     # 비디오를 읽는다
@@ -202,15 +218,23 @@ def main():
 
       time_1 = time.time()
 
-      thres1 = cv2.getTrackbarPos('Threshold1', 'UI')
-      thres2 = cv2.getTrackbarPos('Threshold2', 'UI')
-      thres3 = cv2.getTrackbarPos('Threshold3', 'UI')
-      thres4 = cv2.getTrackbarPos('Threshold4', 'UI')
-      epsilon = cv2.getTrackbarPos('Epsilon', 'UI') /100
+      if args.showgui:
+        thres1 = cv2.getTrackbarPos('Threshold1', 'UI')
+        thres2 = cv2.getTrackbarPos('Threshold2', 'UI')
+        thres3 = cv2.getTrackbarPos('Threshold3', 'UI')
+        thres4 = cv2.getTrackbarPos('Threshold4', 'UI')
+        epsilon = cv2.getTrackbarPos('Epsilon', 'UI') /100
+      else:
+        thres1 = 150
+        thres2 = 100
+        thres3 = 200
+        thres4 = 100
+        epsilon = 5 / 100
 
       clipper.do(thres1, thres2, thres3, thres4, epsilon)
 
-      pbar.update(1)
+      pbar.update(int(clipper.getCurrentFrameNum() - lastFrame))
+      lastFrame = int(clipper.getCurrentFrameNum())
 
       time_2 = time.time()
 

@@ -1,5 +1,5 @@
 import os
-import numpy as np
+import errno
 import cv2
 import imageio
 import gifwriter
@@ -148,8 +148,13 @@ class SceneWriter:
   def createFolder(self, outputPath):
     try:
       os.mkdir(outputPath)
-    except OSError:
-        print ("Creation of the directory %s failed" % outputPath)
+    except OSError as exc:
+        if exc.errno != errno.EEXIST:
+            print ("Creation of the directory %s failed" % outputPath)
+            raise
+        else:
+          print ("the directory %s already exists" % outputPath)
+        pass      
     else:  
         print ("Successfully created the directory %s " % outputPath)
 
