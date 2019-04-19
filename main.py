@@ -271,22 +271,24 @@ def main():
       elif showMainScene:
         cv2.imshow('Frame', clipper.getCurrentFrame())
 
-      # Press Q on keyboard to  exit
-      key = cv2.waitKey(1)
+      if showMainScene:
+        
+        # Press Q on keyboard to  exit
+        key = cv2.waitKey(1)
 
-      # # esc 누르면 종료
-      if key & 0xFF == 27:
-        breaked = True
-        break
+        # # esc 누르면 종료
+        if key & 0xFF == 27:
+          breaked = True
+          break
 
-      if key & 0xff == ord(' '):
-          clipper.setPlaying(not clipper.isPlaying())
-      
-      if key & 0xff == ord('t'):
-        print('time=', (int)((time_2 - time_1) * 1000))
+        if key & 0xff == ord(' '):
+            clipper.setPlaying(not clipper.isPlaying())
+        
+        if key & 0xff == ord('t'):
+          print('time=', (int)((time_2 - time_1) * 1000))
 
-      if key & 0xff == ord('s'):
-        showMainScene = not showMainScene
+        if key & 0xff == ord('s'):
+          showMainScene = not showMainScene
 
     clipper.close()
 
