@@ -12,18 +12,7 @@ class Detected:
     self.contours = contours
     self.approxContours = approx
 
-################################################################################
-def detectLastRect(frame, lastClipRect, thres1, thres2, epsilon):
-
-  # 먼저 외곽선 검출 후 딜레이션한다
-  (canny, dilatedCanny) = detect.cannyAndDilate(frame, thres1, thres2, 3)
-
-  # 기존 검출 영역이 있으면 해당 영역과 같은지 먼저 테스트한다
-  if lastClipRect is not None:
-    if detect.detectRectangleByPixelCount(dilatedCanny, lastClipRect, 3):
-      return Detected(canny, dilatedCanny, copy.deepcopy(lastClipRect), None, None)
-
-  return Detected(canny, dilatedCanny, None, None, None)
+SecondTimeCoverage = 0.5
 
 ################################################################################
 class RectDetector:
@@ -105,7 +94,7 @@ class RectDetector:
     (canny, dilatedCanny) = detect.cannyAndDilate(frame, thres1, thres2, 3)
 
     # 기존에 검출된 영역이 있다, 해당 영역과 겹치는지 확인한다
-    if detect.detectRectangleByPixelCount(dilatedCanny, self.lastClipRect, 3):
+    if detect.detectRectangleByPixelCount(dilatedCanny, self.lastClipRect, 3, SecondTimeCoverage):
       
       # 해당 영역과 겹친다, 기존 클립 영역을 사용한다
       detected = Detected(canny, dilatedCanny, copy.deepcopy(self.lastClipRect), None, None)

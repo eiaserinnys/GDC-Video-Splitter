@@ -38,27 +38,39 @@ def seperateLines(lines, w, h):
   return vLines, hLines
 
 #--------------------------------------------------------------------------------
-def getHorizontalCoverage(image, x1, x2, y, threshold):
+def getHorizontalCoverage(image, x1, x2, y, threshold, r2=None):
   (h, w) = image.shape[:2]
-  y1 = max([0, y-threshold])
-  y2 = min([y+threshold, h])
+
+  if r2 is None:
+    y1 = max([0, y-threshold])
+    y2 = min([y+threshold, h])
+  else:
+    y1 = max([0, y-threshold])
+    y2 = min([y+r2, h])
 
   subImage = image[y1:y2, x1:x2]
   resized = cv2.resize(subImage, (x2 - x1, 1), interpolation=cv2.INTER_AREA)
   count = cv2.countNonZero(resized)
 
   if x2 - x1 > 5:
-    # 75% 0이 아니면 선으로 간주
-    return (count / (x2 - x1)) > 0.5
+    return count / (x2 - x1)
   else:
     # 판정 구간이 5픽셀 미만이면 0만 아니면 선으로 간주
-    return count > 0
+    if count > 0:
+      return 1
+
+  return 0
 
 #--------------------------------------------------------------------------------
-def getVerticalCoverage(image, x, y1, y2, threshold):
+def getVerticalCoverage(image, x, y1, y2, threshold, r2=None):
   (h, w) = image.shape[:2]
-  x1 = max([0, x-threshold])
-  x2 = min([x+threshold, w])
+
+  if r2 is None:
+    x1 = max([0, x-threshold])
+    x2 = min([x+threshold, w])
+  else:
+    x1 = max([0, x-threshold])
+    x2 = min([x+r2, w])
 
   subImage = image[y1:y2, x1:x2]
   resized = cv2.resize(subImage, (1, y2 - y1), interpolation=cv2.INTER_AREA)
@@ -66,10 +78,13 @@ def getVerticalCoverage(image, x, y1, y2, threshold):
 
   if y2 - y1 > 5:
     # 75% 0이 아니면 선으로 간주
-    return (count / (y2 - y1)) > 0.5
+    return count / (y2 - y1)
   else:
     # 판정 구간이 5픽셀 미만이면 0만 아니면 선으로 간주
-    return count > 0
+    if count > 0:
+      return 1
+
+  return 0
 
 #--------------------------------------------------------------------------------
 def getHorizontalSegments(canny, hLines, vLines, minLength, lineThreshold):
@@ -87,7 +102,7 @@ def getHorizontalSegments(canny, hLines, vLines, minLength, lineThreshold):
       x = vLines[j]
 
       # 가로 커버리지를 구한다
-      covered = getHorizontalCoverage(canny, lastX, x, y, lineThreshold)
+      covered = getHorizontalCoverage(canny, lastX, x, y, lineThreshold) > 0.75
 
       # 선으로 판정되면
       if covered:
@@ -124,7 +139,7 @@ def getVerticalSegments(canny, hLines, vLines, minLength, lineThreshold):
       y = hLines[j]
 
       # 가로 커버리지를 구한다
-      covered = getVerticalCoverage(canny, x, lastY, y, lineThreshold)
+      covered = getVerticalCoverage(canny, x, lastY, y, lineThreshold) > 0.75
 
       # 선으로 판정되면
       if covered:
@@ -234,14 +249,14 @@ def isContourRectangle(approx):
   return True
 
 #--------------------------------------------------------------------------------
-def detectRectangleByPixelCount(dilatedCanny, rect, threshold):
+def detectRectangleByPixelCount(dilatedCanny, rect, range,threshold):
   (x1, y1, x2, y2) = rect
 
-  top = getHorizontalCoverage(dilatedCanny, x1, x2, y1, threshold)
-  bottom = getHorizontalCoverage(dilatedCanny, x1, x2, y2, threshold)
+  top = getHorizontalCoverage(dilatedCanny, x1, x2, y1, range) > threshold
+  bottom = getHorizontalCoverage(dilatedCanny, x1, x2, y2, range) > threshold
 
-  left = getVerticalCoverage(dilatedCanny, x1, y1, y2, threshold)
-  right = getVerticalCoverage(dilatedCanny, x2, y1, y2, threshold)
+  left = getVerticalCoverage(dilatedCanny, x1, y1, y2, range) > threshold
+  right = getVerticalCoverage(dilatedCanny, x2, y1, y2, range) > threshold
 
   count = 0
 
@@ -257,12 +272,87 @@ def detectRectangleByPixelCount(dilatedCanny, rect, threshold):
   return count >= 3
 
 #--------------------------------------------------------------------------------
+def scanHorizontalLine(dilatedCanny, x1, x2, yp, r, threshold):
+
+  (h, w) = dilatedCanny.shape[:2]
+
+  coverage = []
+
+  good, goodBegin = 0, None
+  maxGood, maxGoodBegin = 0, None
+
+  y1 = max(0, yp - r)
+  y2 = min(h, yp + r)
+
+  for y in range(y1, y2):
+
+    c = getHorizontalCoverage(dilatedCanny, x1, x2, y, 1)
+
+    if c > threshold:
+      if goodBegin is None:
+        goodBegin = y
+        good = 0
+      else:
+        good += 1
+    elif goodBegin is not None:
+      if good > maxGood:
+        maxGoodBegin = goodBegin
+        maxGood = good
+      goodBegin = None
+
+    coverage.append((c, good))
+
+  if maxGoodBegin is not None:
+    return maxGoodBegin + int(maxGood / 2), coverage
+
+  return None, coverage
+
+#--------------------------------------------------------------------------------
+def scanVerticalLine(dilatedCanny, xp, y1, y2, r, threshold):
+
+  (h, w) = dilatedCanny.shape[:2]
+
+  coverage = []
+
+  good, goodBegin = 0, None
+  maxGood, maxGoodBegin = 0, None
+
+  x1 = max(0, xp - r)
+  x2 = min(w, xp + r)
+
+  for x in range(x1, x2):
+
+    c = getVerticalCoverage(dilatedCanny, x, y1, y2, 1)
+
+    if c > threshold:
+      if goodBegin is None:
+        goodBegin = x
+        good = 0
+      else:
+        good += 1
+    elif goodBegin is not None:
+      if good > maxGood:
+        maxGoodBegin = goodBegin
+        maxGood = good
+      goodBegin = None
+
+    coverage.append((c, good))
+
+  if maxGoodBegin is not None:
+    return maxGoodBegin + int(maxGood / 2), coverage
+
+  return None, coverage
+
+#--------------------------------------------------------------------------------
 def detectMaximumRectangle(dilatedCanny, epsilon):
 
   (h, w) = dilatedCanny.shape[:2]
 
   maxArea = 0
   maxRect = None
+
+  threshold = 0.66
+  pixelToCheck = 10
 
   nontrivContours = []
   approxContours = []
@@ -278,17 +368,27 @@ def detectMaximumRectangle(dilatedCanny, epsilon):
       # 화면 면적의 40%가 넘는 큰 칸토어에 대해서만 처리한다
       if box[2] * box[3] > (w * h * 0.4):
 
-        area = box[2] * box[3]
-
         approx = cv2.approxPolyDP(cnt, epsilon * cv2.arcLength(cnt, True), True)
 
         nontrivContours.append(cnt)
         approxContours.append(approx)
 
-        if detectRectangleByPixelCount(dilatedCanny, (box[0], box[1], box[0] + box[2], box[1] + box[3]), 5):
+        rect = (box[0], box[1], box[0] + box[2], box[1] + box[3])
+
+        top, tc = scanHorizontalLine(dilatedCanny, rect[0], rect[2], rect[1], pixelToCheck, threshold)
+        bottom, bc = scanHorizontalLine(dilatedCanny, rect[0], rect[2], rect[3], pixelToCheck, threshold)
+
+        left, lc = scanVerticalLine(dilatedCanny, rect[0], rect[1], rect[3], pixelToCheck, threshold)
+        right, rc = scanVerticalLine(dilatedCanny, rect[2], rect[1], rect[3], pixelToCheck, threshold)
+
+        if top is not None and bottom is not None and left is not None and right is not None:
+        # if detectRectangleByPixelCount(dilatedCanny, rect, 5, 0.75):
+
+          area = (right - left) * (bottom - top)
+
           if area > maxArea:
-            box = cv2.boundingRect(approx)
-            maxRect = (box[0], box[1], box[0] + box[2], box[1] + box[3])
+            rect = (left, top, right, bottom)
+            maxRect = rect
             maxArea = area
 
         else:
@@ -300,10 +400,10 @@ def detectMaximumRectangle(dilatedCanny, epsilon):
 def cannyAndDilate(frame, thres1, thres2, dilate):
 
   # 미디언 블러
-  #median = cv2.medianBlur(frame, 5)
+  median = cv2.medianBlur(frame, 5)
 
   # Canny 에지 디텍션
-  canny = cv2.Canny(frame, thres1, thres2, apertureSize = 3)
+  canny = cv2.Canny(median, thres1, thres2, apertureSize = 3)
 
   # 캐니 에지를 딜레이션으로 이어 붙인다
   dilatedCanny = cv2.dilate(canny, np.ones((dilate,dilate), np.uint8))

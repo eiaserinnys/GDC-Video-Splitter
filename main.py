@@ -31,9 +31,9 @@ def createUI():
   cv2.namedWindow('Frame', )
 
   cv2.createTrackbar('Threshold1', 'Frame', 0, 500, nothing)
-  cv2.setTrackbarPos('Threshold1', 'Frame', 150)
+  cv2.setTrackbarPos('Threshold1', 'Frame', 20)  #150)
   cv2.createTrackbar('Threshold2', 'Frame', 0, 500, nothing)
-  cv2.setTrackbarPos('Threshold2', 'Frame', 100)
+  cv2.setTrackbarPos('Threshold2', 'Frame', 15)  #100)
 
   # 프레임 변화 추적용
   cv2.createTrackbar('Threshold3', 'Frame', 0, 500, nothing)
@@ -47,7 +47,7 @@ def createUI():
 
   # debug
   cv2.createTrackbar('Show Rect', 'Frame', 0, 1, nothing)
-  cv2.setTrackbarPos('Show Rect', 'Frame', 0)
+  cv2.setTrackbarPos('Show Rect', 'Frame', 1)
 
 ################################################################################
 # rectCannyShown = False
@@ -55,25 +55,30 @@ def createUI():
 def showRectDetection(clipper):
   debugFrame = clipper.getCurrentFrame().copy()
 
+  # if clipper.detectedAtLeastOnce() and clipper.isPlaying():
+  #   clipper.setPlaying(False)
+
   detected = clipper.getDetected()
 
   if detected is not None:
 
+    debugCanny = cv2.cvtColor(detected.dilatedCanny, cv2.COLOR_GRAY2BGR)
+
     if detected.maxRect is not None:
       (x1, y1, x2, y2) = detected.maxRect
-      cv2.rectangle(debugFrame, (x1,y1), (x2, y2), (0, 0, 255), 3)
+      cv2.rectangle(debugFrame, (x1,y1), (x2, y2), (0, 0, 255), 1)
     else:
       if detected.contours is not None:
-        cv2.drawContours(debugFrame, detected.contours, -1, (0, 255, 0, 1), 1)
+        cv2.drawContours(debugCanny, detected.contours, -1, (0, 255, 0, 1), 1)
       if detected.approxContours is not None:
-        cv2.drawContours(debugFrame, detected.approxContours, -1, (0, 255, 255, 1), 2)
+        cv2.drawContours(debugCanny, detected.approxContours, -1, (0, 255, 255, 1), 2)
 
       if clipper.detectedAtLeastOnce():
         print('{} : no rectangle'.format(clipper.currentFrameNum))
         #clipper.setPlaying(False)
         # rectCannyShown = True
 
-    cv2.imshow('canny', detected.dilatedCanny)
+    cv2.imshow('canny', debugCanny)
 
   cv2.imshow('Frame',debugFrame)
 
@@ -235,8 +240,8 @@ def main():
         epsilon = cv2.getTrackbarPos('Epsilon', 'Frame') /100
         debugRectDetection = cv2.getTrackbarPos('Show Rect', 'Frame') > 0
       else:
-        thres1 = 150
-        thres2 = 100
+        thres1 = 20
+        thres2 = 15
         thres3 = 200
         thres4 = 100
         epsilon = 5 / 100
@@ -247,9 +252,9 @@ def main():
       if endFrame is None and clipper.qaFrame is not None:
         pbar.close()
 
+        endFrame = clipper.qaFrame
         print('beginning of q&a session detected at frame {}'.format(endFrame))
         
-        endFrame = clipper.qaFrame
         pbar = tqdm(total=endFrame)
         lastFrame = 0
 

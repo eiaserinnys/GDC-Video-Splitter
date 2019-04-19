@@ -4,6 +4,7 @@ import sys
 import cv2
 import math
 import detect
+import rectclipper
  
 # import the Queue class from Python 3
 if sys.version_info >= (3, 0):
@@ -52,6 +53,7 @@ class QADetector:
 
     # keep looping backward
     # if the thread indicator variable is set, stop the thread
+    sleepCount = 0
     while framePointer > 0 and not self.stopped and not self.finished:
 
       self.stream.set(cv2.CAP_PROP_POS_FRAMES, framePointer)
@@ -66,11 +68,17 @@ class QADetector:
       (canny, dilatedCanny) = detect.cannyAndDilate(frame, thres1, thres2, 3)
 
       # 기존에 검출된 영역이 있다, 해당 영역과 겹치는지 확인한다
-      if detect.detectRectangleByPixelCount(dilatedCanny, rect, 3):
+      if detect.detectRectangleByPixelCount(dilatedCanny, rect, 3, rectclipper.SecondTimeCoverage):
         self.qaBegin = int(framePointer + self.fps)
         self.finished = True
 
       framePointer -= self.fps
+
+      sleepCount += 1
+
+      # cpu를 너무 잡아먹지 않도록
+      if sleepCount > 10:
+        time.sleep(0)
 
   def stop(self):
     # indicate that the thread should be stopped
