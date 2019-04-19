@@ -49,7 +49,7 @@ class QADetector:
 
   def update(self, rect, thres1, thres2):
 
-    framePointer = self.totalFrames - 1
+    framePointer = self.totalFrames - self.fps
 
     # keep looping backward
     # if the thread indicator variable is set, stop the thread
@@ -79,6 +79,7 @@ class QADetector:
       # cpu를 너무 잡아먹지 않도록
       if sleepCount > 10:
         time.sleep(0)
+        sleepCount = 0
 
   def stop(self):
     # indicate that the thread should be stopped
