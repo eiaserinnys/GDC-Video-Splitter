@@ -6,6 +6,7 @@ import videostream
 import detect
 import scenewriter
 import rectclipper
+import qadetector
 
 ################################################################################
 class FrameClipper:
@@ -41,11 +42,16 @@ class FrameClipper:
         self.rectDetector = rectclipper.RectDetector()
         self.sceneWriter = scenewriter.SceneWriter(self.outputPath, self.fvs.getFPS())
       else:
-        print("Error opening video stream or file")
+        print("Error opening video stream or file (1)")
+
+      self.qnaFinder = qadetector.QADetector(pathname)
+      if not self.qnaFinder.isOpened():
+        print("Error opening video stream or file (2)")
 
     else:
-      print('already processed - {}'.format(pathname))
+      print('already processed')
       self.fvs = None
+      self.qnaFinder = None
 
     self.play = True
 
@@ -60,6 +66,8 @@ class FrameClipper:
 
     self.clipped = None
     self.detected = None
+
+    self.qaFrame = None
 
   #------------------------------------------------------------------------------
   def close(self):
@@ -77,6 +85,10 @@ class FrameClipper:
 
       self.fvs.stop()
       self.fvs = None
+
+    if self.qnaFinder is not None:
+      self.qnaFinder.stop()
+      self.qnaFinder = None
 
     if self.sceneWriter is not None:
       self.sceneWriter.close()
@@ -154,6 +166,9 @@ class FrameClipper:
   def do(self, thres1, thres2, thres3, thres4, epsilon):
 
     if self.more() and self.isPlaying():
+
+      detectedBefore = self.rectDetector.detectedAtLeastOnce()
+
       # 다음 프레임을 받아온다
       (self.currentFrameNum, self.currentFrame) = self.getNextFrame()
       self.lastFrameNum = self.currentFrameNum
@@ -168,6 +183,17 @@ class FrameClipper:
       # 프레임이 스테이블하면 앞으로 진행한다
       if self.sceneWriter.isStabilized() and not self.waitForBufferEmptied:
         self.peekForward(thres1, thres2, thres3, thres4, epsilon)
+
+      # qna 디텍터를 시작한다
+      if not detectedBefore and self.rectDetector.detectedAtLeastOnce():
+        self.qnaFinder.start(self.rectDetector.getLastDetectedRectangle(), thres1, thres2)
+
+      if self.qaFrame is None and self.qnaFinder.finished:
+        self.qaFrame = self.qnaFinder.qaBegin
+        if self.fvs is not None:
+          self.fvs.SetEndFrame(self.qnaFinder.qaBegin)
+        else:
+          print('something wrong (no video stream reader to report end frame')
 
     else:
       # 기존 프레임을 사용한다

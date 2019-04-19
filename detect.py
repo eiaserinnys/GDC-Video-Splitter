@@ -209,7 +209,7 @@ def checkLastClipRect(maxRect, lastClipRect):
   return maxRect
 
 #--------------------------------------------------------------------------------
-def isRectangle(approx):
+def isContourRectangle(approx):
 
   l = len(approx)
 
@@ -234,50 +234,58 @@ def isRectangle(approx):
   return True
 
 #--------------------------------------------------------------------------------
-def detectMaximumRectangle(first, w, h, epsilon):
+def detectRectangleByPixelCount(dilatedCanny, rect, threshold):
+  (x1, y1, x2, y2) = rect
+
+  top = getHorizontalCoverage(dilatedCanny, x1, x2, y1, threshold)
+  bottom = getHorizontalCoverage(dilatedCanny, x1, x2, y2, threshold)
+
+  left = getVerticalCoverage(dilatedCanny, x1, y1, y2, threshold)
+  right = getVerticalCoverage(dilatedCanny, x2, y1, y2, threshold)
+
+  count = 0
+
+  if top:
+    count += 1
+  if bottom:
+    count += 1
+  if left:
+    count += 1
+  if right:
+    count += 1
+  
+  return count >= 3
+
+#--------------------------------------------------------------------------------
+def detectMaximumRectangle(dilatedCanny, epsilon):
+
+  (h, w) = dilatedCanny.shape[:2]
 
   maxArea = 0
   maxRect = None
 
-  contours, hierarchy = cv2.findContours(first, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
   nontrivContours = []
   approxContours = []
 
-  for i in range(len(contours)):
-      cnt = contours[i]
-      cnt_len = cv2.arcLength(cnt, True)
-      approx = cv2.approxPolyDP(cnt, epsilon * cnt_len, True)
+  # 칸토어를 찾는다
+  contours, hierarchy = cv2.findContours(dilatedCanny, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+  for i in range(len(contours)):
+
+      cnt = contours[i]
       box = cv2.boundingRect(cnt)
 
-      # 큰 칸토어가 있다
+      # 화면 면적의 40%가 넘는 큰 칸토어에 대해서만 처리한다
       if box[2] * box[3] > (w * h * 0.4):
 
-        # 에지를 따라서 커버리지가 있는지 확인하자
-        threshold = 5
-        top = getHorizontalCoverage(first, box[0], box[0] + box[2], box[1], threshold)
-        bottom = getHorizontalCoverage(first, box[0], box[0] + box[2], box[1] + box[3], threshold)
+        area = box[2] * box[3]
 
-        left = getVerticalCoverage(first, box[0], box[1], box[1] + box[3], threshold)
-        right = getVerticalCoverage(first, box[0] + box[2], box[1], box[1] + box[3], threshold)
+        approx = cv2.approxPolyDP(cnt, epsilon * cv2.arcLength(cnt, True), True)
 
         nontrivContours.append(cnt)
         approxContours.append(approx)
 
-        area = box[2] * box[3]
-        
-        count = 0
-        if top:
-          count += 1
-        if bottom:
-          count += 1
-        if left:
-          count += 1
-        if right:
-          count += 1
-
-        if count >= 3:
+        if detectRectangleByPixelCount(dilatedCanny, (box[0], box[1], box[0] + box[2], box[1] + box[3]), 5):
           if area > maxArea:
             box = cv2.boundingRect(approx)
             maxRect = (box[0], box[1], box[0] + box[2], box[1] + box[3])
@@ -288,20 +296,19 @@ def detectMaximumRectangle(first, w, h, epsilon):
 
   return maxRect, nontrivContours, approxContours
 
-          # diff = cv2.absdiff(lastClipped, clipped)
-          # diffGray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-          # error = diffGray.sum()
-          # errorPerPixel = error / (lw * lh)
+#--------------------------------------------------------------------------------
+def cannyAndDilate(frame, thres1, thres2, dilate):
 
-          # if errorPerPixel > 33:
-          #   #print('{} - new frame'.format(errorPerPixel))
-          #   newKeyframe = True
-          # elif errorPerPixel > 0.3:
-          #   #print('{} - new subframe'.format(errorPerPixel))
-          #   newSubFrame = True
-          # else:
-          #   pass
-          # print(errorPerPixel)
+  # 미디언 블러
+  #median = cv2.medianBlur(frame, 5)
+
+  # Canny 에지 디텍션
+  canny = cv2.Canny(frame, thres1, thres2, apertureSize = 3)
+
+  # 캐니 에지를 딜레이션으로 이어 붙인다
+  dilatedCanny = cv2.dilate(canny, np.ones((dilate,dilate), np.uint8))
+
+  return (canny, dilatedCanny)
 
 #--------------------------------------------------------------------------------
 def debugRender(hLines, vLines, hSegments, vSegments):

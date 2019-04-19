@@ -16,8 +16,6 @@ from tqdm import tqdm
 # 파일 기록 여부
 scenewriter.writeFiles = True
 
-debugRectDetection = False
-debugFrameError = False
 stopOnError = True               # 에러 발생 시 재생 정지
 startFramePos = 0                # 0
 
@@ -30,21 +28,26 @@ def nothing(x):
 ################################################################################
 def createUI():
   # 에지 디텍션 필터
-  cv2.namedWindow('UI', cv2.WINDOW_AUTOSIZE);
-  cv2.createTrackbar('Threshold1', 'UI', 0, 500, nothing)
-  cv2.setTrackbarPos('Threshold1', 'UI', 150)
-  cv2.createTrackbar('Threshold2', 'UI', 0, 500, nothing)
-  cv2.setTrackbarPos('Threshold2', 'UI', 100)
+  cv2.namedWindow('Frame', )
+
+  cv2.createTrackbar('Threshold1', 'Frame', 0, 500, nothing)
+  cv2.setTrackbarPos('Threshold1', 'Frame', 150)
+  cv2.createTrackbar('Threshold2', 'Frame', 0, 500, nothing)
+  cv2.setTrackbarPos('Threshold2', 'Frame', 100)
 
   # 프레임 변화 추적용
-  cv2.createTrackbar('Threshold3', 'UI', 0, 500, nothing)
-  cv2.setTrackbarPos('Threshold3', 'UI', 200)
-  cv2.createTrackbar('Threshold4', 'UI', 0, 500, nothing)
-  cv2.setTrackbarPos('Threshold4', 'UI', 100)
+  cv2.createTrackbar('Threshold3', 'Frame', 0, 500, nothing)
+  cv2.setTrackbarPos('Threshold3', 'Frame', 200)
+  cv2.createTrackbar('Threshold4', 'Frame', 0, 500, nothing)
+  cv2.setTrackbarPos('Threshold4', 'Frame', 100)
 
   # contour
-  cv2.createTrackbar('Epsilon', 'UI', 0, 100, nothing)
-  cv2.setTrackbarPos('Epsilon', 'UI', 5)
+  cv2.createTrackbar('Epsilon', 'Frame', 0, 100, nothing)
+  cv2.setTrackbarPos('Epsilon', 'Frame', 5)
+
+  # debug
+  cv2.createTrackbar('Show Rect', 'Frame', 0, 1, nothing)
+  cv2.setTrackbarPos('Show Rect', 'Frame', 0)
 
 ################################################################################
 # rectCannyShown = False
@@ -162,7 +165,7 @@ def main():
 
   parser.add_argument('infolder', help='the folder which contains video files to process')
   parser.add_argument('-o', '--outfolder', help='folder to store the split scenes')
-  parser.add_argument('-s', '--showgui', type=str2bool, nargs='?', const=False, default=False, help='show ui for image processing threshold variables')
+  parser.add_argument('-s', '--showgui', type=str2bool, nargs='?', const=True, default=False, help='show ui for image processing threshold variables')
 
   args = parser.parse_args()
 
@@ -172,7 +175,9 @@ def main():
     outfolder = infolder
 
   # 처리 중인 씬 표시
-  showMainScene = False
+  showMainScene = args.showgui
+  debugRectDetection = False      # 디버그 옵션
+  debugFrameError = False
 
   if args.showgui:
     createUI()
@@ -194,8 +199,11 @@ def main():
     print('listing video files from {} failed'.format(infolder))
     return
 
-  for path in list:
+  for i in range(len(list)):
     
+    path = list[i]
+    print('[{}/{}] {}'.format(i, len(list), path))
+
     # 클리퍼를 생성한다
     try:
       clipper = frameclipper.FrameClipper(path, outfolder, startFramePos)
@@ -205,7 +213,7 @@ def main():
 
     # 비디오가 열렸나 확인
     if not clipper.isOpened():
-      print('opening \'{}\' failed, skipping.'.format(path))
+      #print('opening \'{}\' failed, skipping.'.format(path))
       continue
 
     lastFrame = 0
@@ -214,16 +222,18 @@ def main():
 
     # 비디오를 읽는다
     breaked = False
+    endFrame = None
     while clipper.more():
 
       time_1 = time.time()
 
       if args.showgui:
-        thres1 = cv2.getTrackbarPos('Threshold1', 'UI')
-        thres2 = cv2.getTrackbarPos('Threshold2', 'UI')
-        thres3 = cv2.getTrackbarPos('Threshold3', 'UI')
-        thres4 = cv2.getTrackbarPos('Threshold4', 'UI')
-        epsilon = cv2.getTrackbarPos('Epsilon', 'UI') /100
+        thres1 = cv2.getTrackbarPos('Threshold1', 'Frame')
+        thres2 = cv2.getTrackbarPos('Threshold2', 'Frame')
+        thres3 = cv2.getTrackbarPos('Threshold3', 'Frame')
+        thres4 = cv2.getTrackbarPos('Threshold4', 'Frame')
+        epsilon = cv2.getTrackbarPos('Epsilon', 'Frame') /100
+        debugRectDetection = cv2.getTrackbarPos('Show Rect', 'Frame') > 0
       else:
         thres1 = 150
         thres2 = 100
@@ -232,6 +242,16 @@ def main():
         epsilon = 5 / 100
 
       clipper.do(thres1, thres2, thres3, thres4, epsilon)
+
+      # qa 프레임이 감지됐다
+      if endFrame is None and clipper.qaFrame is not None:
+        pbar.close()
+
+        print('beginning of q&a session detected at frame {}'.format(endFrame))
+        
+        endFrame = clipper.qaFrame
+        pbar = tqdm(total=endFrame)
+        lastFrame = 0
 
       pbar.update(int(clipper.getCurrentFrameNum() - lastFrame))
       lastFrame = int(clipper.getCurrentFrameNum())
@@ -243,10 +263,8 @@ def main():
         showRectDetection(clipper)
       elif debugFrameError:
         showFrameError(clipper, thres3, thres4)
-      else:
-        if showMainScene:
-          cv2.imshow('Frame', clipper.getCurrentFrame())
-        pass
+      elif showMainScene:
+        cv2.imshow('Frame', clipper.getCurrentFrame())
 
       # Press Q on keyboard to  exit
       key = cv2.waitKey(1)

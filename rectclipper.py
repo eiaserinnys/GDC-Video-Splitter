@@ -13,6 +13,19 @@ class Detected:
     self.approxContours = approx
 
 ################################################################################
+def detectLastRect(frame, lastClipRect, thres1, thres2, epsilon):
+
+  # 먼저 외곽선 검출 후 딜레이션한다
+  (canny, dilatedCanny) = detect.cannyAndDilate(frame, thres1, thres2, 3)
+
+  # 기존 검출 영역이 있으면 해당 영역과 같은지 먼저 테스트한다
+  if lastClipRect is not None:
+    if detect.detectRectangleByPixelCount(dilatedCanny, lastClipRect, 3):
+      return Detected(canny, dilatedCanny, copy.deepcopy(lastClipRect), None, None)
+
+  return Detected(canny, dilatedCanny, None, None, None)
+
+################################################################################
 class RectDetector:
   #------------------------------------------------------------------------------
   def __init__(self):
@@ -28,82 +41,7 @@ class RectDetector:
     # 디버그
     self.canny = None
     self.dilatedCanny = None
-
-  #------------------------------------------------------------------------------
-  def detect(self, frame, thres1, thres2, epsilon):
-    (h, w) = frame.shape[:2]
-
-    # 미디언 블러
-    median = cv2.medianBlur(frame, 5)
-
-    # Canny 에지 디텍션
-    canny = cv2.Canny(median, thres1, thres2, apertureSize = 3)
-
-    # 캐니 에지를 딜레이션으로 이어 붙인다
-    dilatedCanny = cv2.dilate(canny, np.ones((3,3), np.uint8))
-
-    # 기존 검출 영역이 있으면 해당 영역을 먼저 테스트해본다
-    if self.lastClipRect is not None:
-
-      (x1, y1, x2, y2) = self.lastClipRect
-
-      threshold = 3
-
-      top = detect.getHorizontalCoverage(dilatedCanny, x1, x2, y1, threshold)
-      bottom = detect.getHorizontalCoverage(dilatedCanny, x1, x2, y2, threshold)
-
-      left = detect.getVerticalCoverage(dilatedCanny, x1, y1, y2, threshold)
-      right = detect.getVerticalCoverage(dilatedCanny, x2, y1, y2, threshold)
-
-      count = 0
-
-      if top:
-        count += 1
-      if bottom:
-        count += 1
-      if left:
-        count += 1
-      if right:
-        count += 1
-      
-      if count >= 3:
-        return Detected(canny, dilatedCanny, copy.deepcopy(self.lastClipRect), None, None)
-
-    # 영역 감지
-    maxRect = None
-    if self.lastClipRect is None:
-      (maxRect, contours, approxContours) = detect.detectMaximumRectangle(dilatedCanny, w, h, epsilon)
-    else:
-      # 기존 영역하고 다르면 검출을 포기한다 (성능 이슈)
-      (maxRect, contours, approxContours) = (None, [], [])
-
-    return Detected(canny, dilatedCanny, maxRect, contours, approxContours)
-
-  #------------------------------------------------------------------------------
-  def getValidClipRect(self, clipRect):
-
-    rectToReturn = None
-
-    # 감지된 영역이 있으면
-    if clipRect is not None:
-
-      # 이전 검출 영역과 비슷한 지 확인한다
-      clipRect = detect.checkLastClipRect(clipRect, self.lastClipRect)
-
-      # 감지된 영역을 사용한다
-      rectToReturn = clipRect
-
-      # 한 번도 감지된 적이 없으면 보존한다
-      if not self.clipRectDetectedOnce:
-        self.clipRectDetectedOnce = True
-        self.lastClipRect = copy.deepcopy(clipRect)
-        
-    # 감지된 영역이 없지만 한 번이라도 감지된 적이 있으면 마지막 영역을 사용한다
-    # elif self.clipRectDetectedOnce:
-    #   rectToReturn = self.lastClipRect
-
-    return rectToReturn
-  
+ 
   #------------------------------------------------------------------------------
   def clip(self, frame, clipRect):
     # 감지된 영역이 있으면
@@ -114,8 +52,8 @@ class RectDetector:
       return None
 
   #------------------------------------------------------------------------------
-  def getDetectedRectangle(self):
-    return self.maxRect
+  def getLastDetectedRectangle(self):
+    return self.lastClipRect
 
   #------------------------------------------------------------------------------
   def getDetectedContours(self):
@@ -124,13 +62,62 @@ class RectDetector:
   #------------------------------------------------------------------------------
   def detectAndClip(self, frame, thres1, thres2, epsilon):
 
-    # 새로 검출한다
-    detected = self.detect(frame, thres1, thres2, epsilon)
+    # 클립 영역을 검출하자
+    clipRect = None
 
-    # 검출된 영역을 기록과 비교해서 안정화한다
-    clipRect = self.getValidClipRect(detected.maxRect)
+    if not self.clipRectDetectedOnce:
+      (clipRect, detected) = self.detectFirstTime(frame, thres1, thres2, epsilon)
+    else:
+      (clipRect, detected) = self.detectSecondTime(frame, thres1, thres2)
 
     return self.clip(frame, clipRect), detected
+
+  #------------------------------------------------------------------------------
+  def detectFirstTime(self, frame, thres1, thres2, epsilon):
+
+    # 먼저 외곽선 검출 후 딜레이션한다
+    (canny, dilatedCanny) = detect.cannyAndDilate(frame, thres1, thres2, 3)
+
+    # 기존에 감지된 영역이 없는 경우, 새로 검출을 시도한다
+    (maxRect, contours, approxContours) = detect.detectMaximumRectangle(dilatedCanny, epsilon)
+
+    if maxRect is not None:
+
+      # 검출에 성공, 이제 이 영역을 PT 영역으로 간주한다
+      self.clipRectDetectedOnce = True
+      self.lastClipRect = copy.deepcopy(maxRect)
+
+      # 디버그 정보를 기록한다
+      detected = Detected(canny, dilatedCanny, copy.deepcopy(self.lastClipRect), contours, approxContours)
+    
+    else:
+      # 디버그 정보를 기록한다
+      detected = Detected(canny, dilatedCanny, None, contours, approxContours)
+
+    return (maxRect, detected)
+
+  #------------------------------------------------------------------------------
+  def detectSecondTime(self, frame, thres1, thres2):
+
+    clipRect = None
+
+    # 먼저 외곽선 검출 후 딜레이션한다
+    (canny, dilatedCanny) = detect.cannyAndDilate(frame, thres1, thres2, 3)
+
+    # 기존에 검출된 영역이 있다, 해당 영역과 겹치는지 확인한다
+    if detect.detectRectangleByPixelCount(dilatedCanny, self.lastClipRect, 3):
+      
+      # 해당 영역과 겹친다, 기존 클립 영역을 사용한다
+      detected = Detected(canny, dilatedCanny, copy.deepcopy(self.lastClipRect), None, None)
+      clipRect = copy.deepcopy(self.lastClipRect)
+
+    else:
+
+      # TODO) 여기서 새 영역 검출을 시도해야 하는데 일단 스킵하고 전화면을 캡처한다
+      detected = Detected(canny, dilatedCanny, None, None, None)
+      clipRect = None
+
+    return (clipRect, detected)
 
   #------------------------------------------------------------------------------
   def detectedAtLeastOnce(self):

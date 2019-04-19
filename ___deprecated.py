@@ -160,3 +160,19 @@
   # for i in range(len(rects)):
   #   (x1, y1, x2, y2) = rects[i]
   #   cv2.rectangle(frame, (x1,y1), (x2, y2), rectColor, 1)
+
+
+          # diff = cv2.absdiff(lastClipped, clipped)
+          # diffGray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+          # error = diffGray.sum()
+          # errorPerPixel = error / (lw * lh)
+
+          # if errorPerPixel > 33:
+          #   #print('{} - new frame'.format(errorPerPixel))
+          #   newKeyframe = True
+          # elif errorPerPixel > 0.3:
+          #   #print('{} - new subframe'.format(errorPerPixel))
+          #   newSubFrame = True
+          # else:
+          #   pass
+          # print(errorPerPixel)

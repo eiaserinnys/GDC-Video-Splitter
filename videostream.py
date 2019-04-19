@@ -37,6 +37,8 @@ class FileVideoStream:
     # the video file
     self.Q = Queue(maxsize=queueSize)
 
+    self.endFrame = None
+
   def getFPS(self):
     return self.fps
 
@@ -72,9 +74,13 @@ class FileVideoStream:
         if not grabbed:
           self.finished = True
           return
- 
+
         # add the frame to the queue
         self.Q.put((f, frame))
+
+        if self.endFrame is not None and f > self.endFrame:
+          self.finished = True
+          return
 
       else:
           time.sleep(0)
@@ -105,3 +111,6 @@ class FileVideoStream:
 
   def getExtent(self):
       return (self.stream.get(cv2.CAP_PROP_FRAME_WIDTH), self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+  def SetEndFrame(self, endFrame):
+      self.endFrame = endFrame

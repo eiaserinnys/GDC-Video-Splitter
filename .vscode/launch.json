@@ -11,7 +11,8 @@
             "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
             "args": [
-                "S:\\DSquare\\[참고자료]\\오픈월드", "-o", "D:\\__Development__\\gdcsplit"
+                //"S:\\DSquare\\[참고자료]\\오픈월드", "-o", "D:\\__Development__\\gdcsplit"
+                "S:\\_Reference\\Conference\\GDC2019\\video", "-o", "D:\\__Development__\\gdcsplit", "-s"
             ],
         },
         {
