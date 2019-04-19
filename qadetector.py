@@ -5,6 +5,7 @@ import cv2
 import math
 import detect
 import rectclipper
+import time
  
 # import the Queue class from Python 3
 if sys.version_info >= (3, 0):
@@ -71,6 +72,7 @@ class QADetector:
       if detect.detectRectangleByPixelCount(dilatedCanny, rect, 3, rectclipper.SecondTimeCoverage):
         self.qaBegin = int(framePointer + self.fps)
         self.finished = True
+        return
 
       framePointer -= self.fps
 
