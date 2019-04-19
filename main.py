@@ -55,8 +55,10 @@ def createUI():
 def showRectDetection(clipper):
   debugFrame = clipper.getCurrentFrame().copy()
 
-  # if clipper.detectedAtLeastOnce() and clipper.isPlaying():
-  #   clipper.setPlaying(False)
+  if clipper.detectedAtLeastOnce():
+    if clipper.isPlaying():
+      clipper.setPlaying(False)
+    #clipper.rectDetector.clipRectDetectedOnce = False
 
   detected = clipper.getDetected()
 
@@ -66,7 +68,10 @@ def showRectDetection(clipper):
 
     if detected.maxRect is not None:
       (x1, y1, x2, y2) = detected.maxRect
+      dist = 5
       cv2.rectangle(debugFrame, (x1,y1), (x2, y2), (0, 0, 255), 1)
+      cv2.rectangle(debugFrame, (x1-dist,y1-dist), (x2+dist, y2+dist), (0, 255, 255), 1)
+      cv2.rectangle(debugCanny, (x1,y1), (x2, y2), (0, 0, 255), 1)
     else:
       if detected.contours is not None:
         cv2.drawContours(debugCanny, detected.contours, -1, (0, 255, 0, 1), 1)
@@ -74,9 +79,10 @@ def showRectDetection(clipper):
         cv2.drawContours(debugCanny, detected.approxContours, -1, (0, 255, 255, 1), 2)
 
       if clipper.detectedAtLeastOnce():
-        print('{} : no rectangle'.format(clipper.currentFrameNum))
+        #print('{} : no rectangle'.format(clipper.currentFrameNum))
         #clipper.setPlaying(False)
         # rectCannyShown = True
+        pass
 
     cv2.imshow('canny', debugCanny)
 

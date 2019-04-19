@@ -3,6 +3,7 @@ from threading import Lock
 import cv2
 import sys
 import time
+import os
 import imageio
 
 # import the Queue class from Python 3
@@ -58,16 +59,43 @@ class GifWriter:
     self.scale = scale
     self.stopped = False
 
+    filename, file_extension = os.path.splitext(pathName)
+    self.mp4 = file_extension == '.mp4'
+
   #------------------------------------------------------------------------------
   def convertImage(self, img):
-    return cv2.cvtColor(cv2.resize(img, None, fx=self.scale, fy=self.scale), cv2.COLOR_BGR2RGB)    
+
+    if self.scale != 1:
+      img = cv2.resize(img, None, fx=self.scale, fy=self.scale)
+
+    if self.mp4:
+      # 패딩을 추가한다
+      (h, w) = img.shape[:2]
+
+      pw, ph = w, h
+
+      blockSize = 16
+      if w % blockSize != 0:
+        pw = int(w / blockSize + 1)*blockSize
+      if h % blockSize != 0:
+        ph = int(h / blockSize + 1)*blockSize
+
+      l = int((pw-w) / 2)
+      r = (pw-w) - l
+
+      t = int((ph-h) / 2)
+      b = (ph-h) - t
+
+      img = cv2.copyMakeBorder(img,t,b,l,r,cv2.BORDER_CONSTANT,value=0)
+
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)    
 
   #------------------------------------------------------------------------------
   def append(self, img):
     if self.Q is None:
       self.toWrite.append(img)
-      # 적어도 2초 정도 분량의 움직임이 있을 때만 애니메이션으로 간주
-      if len(self.toWrite) > self.fps * 2:
+      # 일정 길이 이상의 움직임이 있을 때만 애니메이션으로 간주 (슬라이드 전환을 배제하기 위해서)
+      if len(self.toWrite) > self.fps * 3:
 
         # 동시에 3개만 진행한다
         while threads.value > 2:

@@ -9,10 +9,11 @@ showDebug = False
 
 ################################################################################
 class FrameError:
-  def __init__(self, isError, mfe, mme, before, next, diff, diffcanny, featureErrors, meanErrors, wr, hr):
+  def __init__(self, isError, mfe, mme, msd, before, next, diff, diffcanny, featureErrors, meanErrors, stdDevs, wr, hr):
     self.isError = isError
     self.maxFeatureError = mfe
     self.maxMeanError = mme
+    self.maxStdDev = msd
     self.before = before
     self.next = next
     # self.oldDil = oldDil
@@ -22,6 +23,7 @@ class FrameError:
     self.diffcanny = diffcanny
     self.featureErrors = featureErrors
     self.meanErrors = meanErrors
+    self.stdDevs = stdDevs
     self.wr = wr
     self.hr = hr
 
@@ -62,9 +64,11 @@ def calcualteFrameError(before, next, thres3, thres4):
 
   maxError = 0
   maxDiffMean = 0
+  maxStdDev = 0
 
   featureErrors = []
   meanErrors = []
+  stdDevs = []
 
   # 자른 영역을 순회하면서 최대 에러를 카운트한다
   for i in range(len(hr) - 1):
@@ -92,7 +96,10 @@ def calcualteFrameError(before, next, thres3, thres4):
       lg = cv2.cvtColor(before[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY)
       ng = cv2.cvtColor(next[y1:y2, x1:x2], cv2.COLOR_BGR2GRAY)
       lm = lg.mean() + 128
-      nm = ng.mean() + 128
+
+      m, s = cv2.meanStdDev(ng)
+
+      nm = m + 128
 
       if lm > 0:
         diffMean = abs(nm / lm - 1)
@@ -104,9 +111,14 @@ def calcualteFrameError(before, next, thres3, thres4):
       if maxDiffMean < diffMean:
         maxDiffMean = diffMean
 
+      if maxStdDev < s:
+        maxStdDev = s
+
+      stdDevs.append(s)
+
   isError = maxError > featureErrorThreshold or maxDiffMean > meanErrorThreshold
 
-  return FrameError(isError, maxError, maxDiffMean, before, next, diff, diffcanny, featureErrors, meanErrors, wr, hr)
+  return FrameError(isError, maxError, maxDiffMean, maxStdDev, before, next, diff, diffcanny, featureErrors, meanErrors, stdDevs, wr, hr)
 
 ################################################################################
 class SceneWriter:
@@ -117,6 +129,9 @@ class SceneWriter:
     self.fps = fps
     self.inTransition = True
     self.stableCount = 0
+    self.snapshotTaken = False
+    self.unstableCount = 0
+    self.unstableMemento = 15
     self.lastStableFrame = None
     self.writtenFrame = 0
     self.gifWriter = None
@@ -184,6 +199,7 @@ class SceneWriter:
   def checkAndWrite(self, frameNum, frame, clipped, thres3, thres4):
 
     if self.lastStableFrame is not None:
+
       if clipped is not None:
 
         if not self.isStableInternal(frameNum, clipped, thres3, thres4, True):
@@ -213,28 +229,35 @@ class SceneWriter:
   #------------------------------------------------------------------------------
   def processTransitionFrame(self, frameNum, clipped):
 
-    # 처음 트랜지션에 진입하면
-    if not self.inTransition:
-      self.inTransition = True
+    self.unstableCount += 1
 
-      # gif를 쓰기 시작한다
-      self.writtenFrame += 1
-      fileName = '{no:04d}t-{f:06d}.gif'.format(no=self.writtenFrame, f=int(frameNum))
-      self.gifWriter = gifwriter.GifWriter(self.outputPath + '\\' + fileName, self.fps, 0.5)
+    if self.unstableCount >= self.unstableMemento:
 
-      # 트랜지션에 진입하기 전 프레임도 gif에 먼저 추가한다
-      if writeFiles:
-        for f in self.previousFrames:
-          self.appendGifFrame(f)
+      # 처음 트랜지션에 진입하면
+      if not self.inTransition:
+        self.inTransition = True
 
-    # 안정화 구간을 리셋
-    self.stableCount = 0
+        # gif를 쓰기 시작한다
+        self.writtenFrame += 1
+        # fileName = '{no:04d}t-{f:06d}.gif'.format(no=self.writtenFrame, f=int(frameNum))
+        # self.gifWriter = gifwriter.GifWriter(self.outputPath + '\\' + fileName, self.fps, 0.5)
+        fileName = '{no:04d}t-{f:06d}.mp4'.format(no=self.writtenFrame, f=int(frameNum))
+        self.gifWriter = gifwriter.GifWriter(self.outputPath + '\\' + fileName, self.fps, 1)
 
-    # 기준 프레임을 변경한다
-    self.lastStableFrame = clipped.copy()
+        # 트랜지션에 진입하기 전 프레임도 gif에 먼저 추가한다
+        if writeFiles:
+          for f in self.previousFrames:
+            self.appendGifFrame(f)
 
-    # 프레임을 gif에 추가한다
-    self.appendGifFrame(clipped)
+      # 안정화 구간을 리셋
+      self.stableCount = 0
+      self.snapshotTaken = False
+
+      # 기준 프레임을 변경한다
+      self.lastStableFrame = clipped.copy()
+
+      # 프레임을 gif에 추가한다
+      self.appendGifFrame(clipped)
 
   #------------------------------------------------------------------------------
   def processStableFrame(self, frameNum, clipped):
@@ -244,25 +267,39 @@ class SceneWriter:
     # 트랜지션 중이면 프레임을 추가한다
     self.appendGifFrame(clipped)
 
-    if self.stableCount > 15:
+    if self.stableCount > self.fps * 1.5:
+
+      # 일정 시간 이상 정지하면 트랜지션 종료로 간주한다
+      if showDebug:
+        print('{} - transition stablized'.format(frameNum))
+
       # 안정화되었다
       self.inTransition = False
+      self.unstableCount = 0
 
       # gif 기록을 마친다
       self.endGifWriter()
 
-      if showDebug:
-        print('{} - transition stablized'.format(frameNum))
+    if self.stableCount > self.fps * 2 / 3 and not self.snapshotTaken:
+
+      self.snapshotTaken = True
 
       # 트랜지션 완료 프레임을 덤프
-      self.writtenFrame += 1
-      fileName = '{no:04d}f-{f:06d}.jpg'.format(no=self.writtenFrame,f=int(frameNum))
-      (ch, cw) = clipped.shape[:2]
-      if showDebug:
-        print('Writing {} ({}x{})...'.format(fileName, cw, ch))
+      if self.frameError.maxStdDev > 5:
 
-      if writeFiles:
-        cv2.imwrite(self.outputPath + '\\' + fileName, clipped)
+        self.writtenFrame += 1
+        fileName = '{no:04d}f-{f:06d}.jpg'.format(no=self.writtenFrame,f=int(frameNum))
+        (ch, cw) = clipped.shape[:2]
+
+        if showDebug:
+          print('Writing {} ({}x{})...'.format(fileName, cw, ch))
+
+        if writeFiles:
+          cv2.imwrite(self.outputPath + '\\' + fileName, clipped)
+
+      else:
+        if showDebug:
+          print('clipped frame skipped due to low std dev ({},{},{})'.format(d[0], d[1], d[2]))
 
       # 기준 프레임을 변경한다
       self.lastStableFrame = clipped.copy()
@@ -271,16 +308,22 @@ class SceneWriter:
   def processUncutFrame(self, frameNum, frame, clipped):
 
     if clipped is not None:
+
       if self.writingUncut:
         if showDebug:
           print('frame recovered')
         self.endMp4Writer()
         self.writingUncut = False
         self.previousUncutFrames = []
+
     else:
+
       if self.writingUncut:
+
         self.appendMp4Frame(frame)
+
       else:
+
         if len(self.previousUncutFrames) == 0:
           if showDebug:
             print('frame lost')
@@ -313,5 +356,5 @@ class SceneWriter:
       # 트랜지션 gif 앞에 추가할 프레임을 보존한다
       self.previousFrames.append(clipped.copy())
 
-      while len(self.previousFrames) > 15:
+      while len(self.previousFrames) > self.unstableMemento:
         self.previousFrames.pop(0)
