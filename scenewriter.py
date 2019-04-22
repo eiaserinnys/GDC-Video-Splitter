@@ -168,10 +168,12 @@ class SceneWriter:
             print ("Creation of the directory %s failed" % outputPath)
             raise
         else:
-          print ("the directory %s already exists" % outputPath)
+          #print ("the directory %s already exists" % outputPath)
+          pass
         pass      
     else:  
-        print ("Successfully created the directory %s " % outputPath)
+        #print ("Successfully created the directory %s " % outputPath)
+        pass
 
   #------------------------------------------------------------------------------
   def isStableInternal(self, frameNum, clipped, thres3, thres4, store):

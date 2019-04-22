@@ -37,7 +37,7 @@ class FrameClipper:
       self.fvs = videostream.FileVideoStream(pathname, framePos).start()
 
       if self.fvs.isOpened():
-        print('output to {}'.format(self.outputPath))
+        #print('output to {}'.format(self.outputPath))
         self.extent = self.fvs.getExtent()
         self.rectDetector = rectclipper.RectDetector()
         self.sceneWriter = scenewriter.SceneWriter(self.outputPath, self.fvs.getFPS())
@@ -49,7 +49,7 @@ class FrameClipper:
         print("Error opening video stream or file (2)")
 
     else:
-      print('already processed')
+      print('already processed, skipping')
       self.fvs = None
       self.qnaFinder = None
 

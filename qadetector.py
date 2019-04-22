@@ -30,7 +30,7 @@ class QADetector:
       self.totalFrames = self.stream.get(cv2.CAP_PROP_FRAME_COUNT)
 
       self.fps = round(self.stream.get(cv2.CAP_PROP_FPS))
-      print('"Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}'.format(self.fps))
+      #print('"Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}'.format(self.fps))
       
     self.started = False
     self.stopped = False

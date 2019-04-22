@@ -213,6 +213,7 @@ def main():
   for i in range(len(list)):
     
     path = list[i]
+    print('')
     print('[{}/{}] {}'.format(i, len(list), path))
 
     # 클리퍼를 생성한다
